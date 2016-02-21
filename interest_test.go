@@ -1,4 +1,4 @@
-// app/interest_test.go
+// interest_test.go
 //
 // Author::    Chirantan Mitra
 // Copyright:: Copyright (c) 2015-2016. All rights reserved

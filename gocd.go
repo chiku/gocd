@@ -1,4 +1,4 @@
-// app/go_dashboard.go
+// gocd.go
 //
 // Author::    Chirantan Mitra
 // Copyright:: Copyright (c) 2015-2016. All rights reserved
@@ -20,31 +20,31 @@ const (
 	recovering = "Recovering"
 )
 
-type GoStage struct {
+type Stage struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`
 }
-type GoInstance struct {
-	Stages []GoStage `json:"stages"`
+type Instance struct {
+	Stages []Stage `json:"stages"`
 }
-type GoPreviousInstance struct {
+type PreviousInstance struct {
 	Result string `json:"result"`
 }
-type GoPipeline struct {
-	Name             string             `json:"name"`
-	Instances        []GoInstance       `json:"instances"`
-	PreviousInstance GoPreviousInstance `json:"previous_instance"`
+type Pipeline struct {
+	Name             string           `json:"name"`
+	Instances        []Instance       `json:"instances"`
+	PreviousInstance PreviousInstance `json:"previous_instance"`
 }
-type GoPipelineGroup struct {
-	Pipelines []GoPipeline `json:"pipelines"`
+type PipelineGroup struct {
+	Pipelines []Pipeline `json:"pipelines"`
 }
-type GoDashboard struct {
-	PipelineGroups []GoPipelineGroup
+type Dashboard struct {
+	PipelineGroups []PipelineGroup
 	Interests      *Interests
 }
 
-func NewGoPipelineGroups(body []byte) ([]GoPipelineGroup, error) {
-	var dashboard []GoPipelineGroup
+func NewPipelineGroups(body []byte) ([]PipelineGroup, error) {
+	var dashboard []PipelineGroup
 	err := json.Unmarshal(body, &dashboard)
 	if err != nil {
 		return nil, fmt.Errorf("error in unmarshalling external dashboard JSON: %s", err.Error())
@@ -52,7 +52,7 @@ func NewGoPipelineGroups(body []byte) ([]GoPipelineGroup, error) {
 	return dashboard, nil
 }
 
-func (goDashboard *GoDashboard) ToSimpleDashboard() *SimpleDashboard {
+func (goDashboard *Dashboard) ToSimpleDashboard() *SimpleDashboard {
 	dashboard := &SimpleDashboard{
 		Pipelines: []SimplePipeline{},
 		Ignores:   []string{},
@@ -85,7 +85,7 @@ func (goDashboard *GoDashboard) ToSimpleDashboard() *SimpleDashboard {
 	return dashboard
 }
 
-func traverseStatusInInstances(currentStage GoStage, instances []GoInstance, previousInstance GoPreviousInstance) string {
+func traverseStatusInInstances(currentStage Stage, instances []Instance, previousInstance PreviousInstance) string {
 	selfStatus := currentStage.Status
 	previousInstanceResult := previousInstance.Result
 
@@ -110,7 +110,7 @@ func traverseStatusInInstances(currentStage GoStage, instances []GoInstance, pre
 	return unknown
 }
 
-func findKnownStatusInInstances(currentStage GoStage, instances []GoInstance) string {
+func findKnownStatusInInstances(currentStage Stage, instances []Instance) string {
 	for i := len(instances) - 1; i >= 0; i-- {
 		instance := instances[i]
 		for j := len(instance.Stages) - 1; j >= 0; j-- {

@@ -1,4 +1,4 @@
-// app/simple_dashboard.go
+// simple_dashboard.go
 //
 // Author::    Chirantan Mitra
 // Copyright:: Copyright (c) 2015-2016. All rights reserved
