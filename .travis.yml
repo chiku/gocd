@@ -1,0 +1,14 @@
+language: go
+
+env: GO15VENDOREXPERIMENT=1
+
+go:
+  - 1.5
+  - 1.6
+
+install:
+  - go get github.com/Masterminds/glide
+  - make prereqs
+
+script:
+  - make all
