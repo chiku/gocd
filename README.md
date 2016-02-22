@@ -1,2 +1,4 @@
 # gocd
-Gocd  client
+
+Golang client for Gocd
+======================

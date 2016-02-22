@@ -9,7 +9,6 @@ package gocd
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -38,49 +37,37 @@ type Pipeline struct {
 type PipelineGroup struct {
 	Pipelines []Pipeline `json:"pipelines"`
 }
-type Dashboard struct {
-	PipelineGroups []PipelineGroup
-	Interests      *Interests
-}
+type PipelineGroups []PipelineGroup
 
-func NewPipelineGroups(body []byte) ([]PipelineGroup, error) {
+func NewPipelineGroups(body []byte) (PipelineGroups, error) {
 	var dashboard []PipelineGroup
 	err := json.Unmarshal(body, &dashboard)
 	if err != nil {
-		return nil, fmt.Errorf("error in unmarshalling external dashboard JSON: %s", err.Error())
+		return nil, fmt.Errorf("error unmarshalling Gocd JSON: %s", err.Error())
 	}
 	return dashboard, nil
 }
 
-func (goDashboard *Dashboard) ToSimpleDashboard() *SimpleDashboard {
-	dashboard := &SimpleDashboard{
-		Pipelines: []SimplePipeline{},
-		Ignores:   []string{},
-	}
+func (groups *PipelineGroups) ToDashboard() Dashboard {
+	dashboard := Dashboard{}
 
-	for _, goPipelineGroup := range goDashboard.PipelineGroups {
-		for _, goPipeline := range goPipelineGroup.Pipelines {
-			interestOrder, displayName := goDashboard.Interests.PipelineName(goPipeline.Name)
-			if interestOrder != -1 {
-				stages := []SimpleStage{}
-				if len(goPipeline.Instances) > 0 {
+	for _, group := range *groups {
+		for _, pipeline := range group.Pipelines {
+			displayName := pipeline.Name
+			stages := []DashboardStage{}
+			if len(pipeline.Instances) > 0 {
 
-					goInstance := goPipeline.Instances[len(goPipeline.Instances)-1]
-					for _, goStage := range goInstance.Stages {
-						status := traverseStatusInInstances(goStage, goPipeline.Instances, goPipeline.PreviousInstance)
-						stages = append(stages, SimpleStage{Name: goStage.Name, Status: status})
-					}
-					if len(stages) > 0 {
-						dashboard.Pipelines = append(dashboard.Pipelines, (SimplePipeline{Name: displayName, Stages: stages}).Order(interestOrder))
-					}
+				instance := pipeline.Instances[len(pipeline.Instances)-1]
+				for _, stage := range instance.Stages {
+					status := traverseStatusInInstances(stage, pipeline.Instances, pipeline.PreviousInstance)
+					stages = append(stages, DashboardStage{Name: stage.Name, Status: status})
 				}
-			} else {
-				dashboard.Ignores = append(dashboard.Ignores, goPipeline.Name)
+				if len(stages) > 0 {
+					dashboard = append(dashboard, DashboardPipeline{Name: displayName, Stages: stages})
+				}
 			}
 		}
 	}
-
-	sort.Sort(ByOrder(dashboard.Pipelines))
 
 	return dashboard
 }
