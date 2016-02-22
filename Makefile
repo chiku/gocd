@@ -21,7 +21,7 @@ fmt:
 vet:
 	go vet
 
-test: $(sources) out/coverage.html
+test: out/coverage.html
 
 out:
 	mkdir -p out
@@ -29,9 +29,9 @@ out:
 clean:
 	rm -rfv out
 
-out/coverage.out: out
+out/coverage.out: $(sources) out
 	go test -coverprofile=out/coverage.out
 
-out/coverage.html: out/coverage.out
+out/coverage.html: $(sources) out/coverage.out
 	go tool cover -func=out/coverage.out
 	go tool cover -html=out/coverage.out -o out/coverage.html

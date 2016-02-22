@@ -93,5 +93,17 @@ var _ = Describe("Dashboard", func() {
 				Expect(ignores).To(ContainElement("Pipeline Two"))
 			})
 		})
+
+		Context("when order contains an item that is not a pipeline name", func() {
+			order := []string{"Pipeline One", "Pipeline Two", "Pipeline Four"}
+			sortedDashboard, ignores := dashboard.FilteredSort(order)
+
+			It("ignores the extra order", func() {
+				Expect(sortedDashboard).To(HaveLen(2))
+				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
+				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Two"))
+				Expect(ignores).To(Equal([]string{"Pipeline Three"}))
+			})
+		})
 	})
 })
