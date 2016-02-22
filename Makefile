@@ -6,9 +6,14 @@ SHELL := bash
 .DELETE_ON_ERROR:
 .SUFFIXES:
 
-.PHONY: all fmt vet test
+.PHONY: all prereq fmt vet test clean
 
-all: fmt vet test
+sources := $(wildcard *.go)
+
+all: prereq fmt vet test
+
+prereq:
+	glide install
 
 fmt:
 	go fmt
@@ -16,5 +21,17 @@ fmt:
 vet:
 	go vet
 
-test:
-	go test
+test: $(sources) out/coverage.html
+
+out:
+	mkdir -p out
+
+clean:
+	rm -rfv out
+
+out/coverage.out: out
+	go test -coverprofile=out/coverage.out
+
+out/coverage.html: out/coverage.out
+	go tool cover -func=out/coverage.out
+	go tool cover -html=out/coverage.out -o out/coverage.html
