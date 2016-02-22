@@ -12,7 +12,7 @@ sources := $(wildcard *.go)
 
 all: prereq fmt vet test
 
-prereq:
+prereqs:
 	glide install
 
 fmt:
