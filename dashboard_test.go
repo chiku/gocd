@@ -33,18 +33,12 @@ var _ = Describe("Dashboard", func() {
 	})
 
 	Context("filtered sort", func() {
-		p1 := gocd.DashboardPipeline{
-			Name:   "Pipeline One",
-			Stages: []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}},
-		}
-		p2 := gocd.DashboardPipeline{
-			Name:   "Pipeline Two",
-			Stages: []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}},
-		}
-		p3 := gocd.DashboardPipeline{
-			Name:   "Pipeline Three",
-			Stages: []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}},
-		}
+		s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+		s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+		s3 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}}
+		p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+		p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+		p3 := gocd.DashboardPipeline{Name: "Pipeline Three", Stages: s3}
 		dashboard := gocd.Dashboard{p2, p1, p3}
 
 		Context("when all pipelines are demanded", func() {
@@ -52,9 +46,16 @@ var _ = Describe("Dashboard", func() {
 			sortedDashboard, ignores := dashboard.FilteredSort(order)
 
 			It("arranges pipelines by name in the given order", func() {
+				Expect(sortedDashboard).To(HaveLen(3))
+
 				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
+				Expect(sortedDashboard[0].Stages).To(Equal(s1))
+
 				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Two"))
+				Expect(sortedDashboard[1].Stages).To(Equal(s2))
+
 				Expect(sortedDashboard[2].Name).To(Equal("Pipeline Three"))
+				Expect(sortedDashboard[2].Stages).To(Equal(s3))
 			})
 
 			It("has no ignores", func() {
@@ -103,6 +104,47 @@ var _ = Describe("Dashboard", func() {
 				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
 				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Two"))
 				Expect(ignores).To(Equal([]string{"Pipeline Three"}))
+			})
+		})
+	})
+
+	Context("map names", func() {
+		s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+		s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+		p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+		p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+		dashboard := gocd.Dashboard{p1, p2}
+
+		Context("when all pipelines are mapped", func() {
+			mapping := map[string]string{
+				"Pipeline One": "Pipeline A",
+				"Pipeline Two": "Pipeline B",
+			}
+			mappedDashboard := dashboard.MapNames(mapping)
+
+			It("changes the names of the pipelines", func() {
+				Expect(mappedDashboard).To(HaveLen(2))
+
+				Expect(mappedDashboard[0].Name).To(Equal("Pipeline A"))
+				Expect(mappedDashboard[0].Stages).To(Equal(s1))
+
+				Expect(mappedDashboard[1].Name).To(Equal("Pipeline B"))
+				Expect(mappedDashboard[1].Stages).To(Equal(s2))
+			})
+		})
+
+		Context("when no pipelines are mapped", func() {
+			mapping := map[string]string{}
+			mappedDashboard := dashboard.MapNames(mapping)
+
+			It("retains the original names of the pipelines", func() {
+				Expect(mappedDashboard).To(HaveLen(2))
+
+				Expect(mappedDashboard[0].Name).To(Equal("Pipeline One"))
+				Expect(mappedDashboard[0].Stages).To(Equal(s1))
+
+				Expect(mappedDashboard[1].Name).To(Equal("Pipeline Two"))
+				Expect(mappedDashboard[1].Stages).To(Equal(s2))
 			})
 		})
 	})

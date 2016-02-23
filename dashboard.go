@@ -49,6 +49,18 @@ func (dashboard Dashboard) FilteredSort(order []string) (sortedDashboard Dashboa
 	return
 }
 
+func (dashboard Dashboard) MapNames(mapping map[string]string) (mappedDashboard Dashboard) {
+	for _, pipeline := range dashboard {
+		if val, ok := mapping[pipeline.Name]; ok {
+			mappedDashboard = append(mappedDashboard, DashboardPipeline{Name: val, Stages: pipeline.Stages})
+		} else {
+			mappedDashboard = append(mappedDashboard, pipeline)
+		}
+	}
+
+	return
+}
+
 func (dashboard Dashboard) findPipelineWithName(name string) *DashboardPipeline {
 	for _, pipeline := range dashboard {
 		if strings.EqualFold(pipeline.Name, name) {

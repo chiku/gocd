@@ -1,3 +1,9 @@
+# Makefile
+#
+# Author::    Chirantan Mitra
+# Copyright:: Copyright (c) 2015-2016. All rights reserved
+# License::   MIT
+
 MAKEFLAGS += --warn-undefined-variables
 SHELL := bash
 
