@@ -44,8 +44,8 @@ var _ = Describe("Client", func() {
 			}))
 			defer ts.Close()
 
-			client := gocd.NewClient(ts.URL)
-			dashboard, err := client.Fetch()
+			client := gocd.NewClient()
+			dashboard, err := client.Fetch(ts.URL)
 
 			It("returns dashboard", func() {
 				Expect(dashboard).To(HaveLen(1))
@@ -71,8 +71,8 @@ var _ = Describe("Client", func() {
 			}))
 			defer ts.Close()
 
-			client := gocd.NewClient(ts.URL)
-			dashboard, err := client.Fetch()
+			client := gocd.NewClient()
+			dashboard, err := client.Fetch(ts.URL)
 
 			It("has no dashboard", func() {
 				Expect(dashboard).To(BeNil())
@@ -90,8 +90,8 @@ var _ = Describe("Client", func() {
 			}))
 			defer ts.Close()
 
-			client := gocd.NewClient(ts.URL)
-			dashboard, err := client.Fetch()
+			client := gocd.NewClient()
+			dashboard, err := client.Fetch(ts.URL)
 
 			It("has no dashboard", func() {
 				Expect(dashboard).To(BeNil())
@@ -109,8 +109,8 @@ var _ = Describe("Client", func() {
 			}))
 			ts.Close()
 
-			client := gocd.NewClient(ts.URL)
-			dashboard, err := client.Fetch()
+			client := gocd.NewClient()
+			dashboard, err := client.Fetch(ts.URL)
 
 			It("has no dashboard", func() {
 				Expect(dashboard).To(BeNil())
@@ -119,12 +119,13 @@ var _ = Describe("Client", func() {
 			It("has errors", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("error fetching data from Gocd: "))
+				Expect(err.Error()).To(ContainSubstring("(after 3 retries)"))
 			})
 		})
 
 		Context("when <>", func() {
-			client := gocd.NewClient("<>")
-			dashboard, err := client.Fetch()
+			client := gocd.NewClient()
+			dashboard, err := client.Fetch("<>")
 
 			It("has no dashboard", func() {
 				Expect(dashboard).To(BeNil())
@@ -133,12 +134,13 @@ var _ = Describe("Client", func() {
 			It("has errors", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("error fetching data from Gocd: "))
+				Expect(err.Error()).To(ContainSubstring("(after 3 retries)"))
 			})
 		})
 
 		Context("when request creation fails", func() {
-			client := gocd.NewClient("::")
-			dashboard, err := client.Fetch()
+			client := gocd.NewClient()
+			dashboard, err := client.Fetch("::")
 
 			It("has no dashboard", func() {
 				Expect(dashboard).To(BeNil())

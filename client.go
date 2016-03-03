@@ -9,7 +9,6 @@ package gocd
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -23,7 +22,7 @@ func fetchGocdDashboard(client *http.Client, request *http.Request) (response *h
 	for response == nil && retries < maxRetries {
 		response, err = client.Do(request)
 		if err != nil {
-			log.Printf("error fetching data from Gocd (retry #%d): %s", retries+1, err)
+			err = fmt.Errorf("%s (after %d retries)", err, retries+1)
 		}
 		retries++
 	}
@@ -54,19 +53,15 @@ func parseHTTPResponse(response *http.Response) (PipelineGroups, error) {
 }
 
 type Client struct {
-	url    string
 	client *http.Client
 }
 
-func NewClient(url string) *Client {
-	return &Client{
-		url:    url,
-		client: &http.Client{},
-	}
+func NewClient() *Client {
+	return &Client{client: &http.Client{}}
 }
 
-func (c *Client) Fetch() (Dashboard, error) {
-	request, err := http.NewRequest("GET", c.url, nil)
+func (c *Client) Fetch(url string) (Dashboard, error) {
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Gocd request: %s", err)
 	}
