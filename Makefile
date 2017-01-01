@@ -26,12 +26,15 @@ coverage = out
 coverage_out = $(coverage)/coverage.out
 coverage_html = $(coverage)/coverage.html
 
-all: prereq fmt vet test
+all: prereqs fmt vet test
 .PHONY: all
 
-prereqs:
-	glide install
-.PHONY: prereq
+prereqs: $(GLIDE)
+	${GLIDE} install
+.PHONY: prereqs
+
+$(GLIDE):
+	${GO} get github.com/Masterminds/glide
 
 fmt:
 	${GO} fmt
