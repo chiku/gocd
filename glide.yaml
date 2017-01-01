@@ -1,4 +1,0 @@
-package: github.com/chiku/gocd
-import:
-- package: github.com/onsi/ginkgo
-- package: github.com/onsi/gomega

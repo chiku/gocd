@@ -19,22 +19,14 @@ endif
 MKDIR = mkdir -p
 RM = rm -rvf
 GO = go
-GLIDE = $(GOPATH)/bin/glide
 
 sources := $(wildcard *.go)
 coverage = out
 coverage_out = $(coverage)/coverage.out
 coverage_html = $(coverage)/coverage.html
 
-all: prereqs fmt vet test
+all: fmt vet test
 .PHONY: all
-
-prereqs: $(GLIDE)
-	${GLIDE} install
-.PHONY: prereqs
-
-$(GLIDE):
-	${GO} get github.com/Masterminds/glide
 
 fmt:
 	${GO} fmt

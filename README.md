@@ -8,16 +8,13 @@ Development prerequisites
 -------------------------
 
 * Install `make`
-* [Install golang](https://golang.org/doc/install) (1.5 or better). Please set `GO15VENDOREXPERIMENT=1` if you are using golang 1.5
+* [Install golang](https://golang.org/doc/install).
 * Add `$GOPTAH/bin` to `PATH`
-* Install `glide`
-`go get github.com/Masterminds/glide`
 
 Running tests
 -------------
 
 ```shell
-make prereqs
 make all
 ```
 
