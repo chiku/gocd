@@ -12,6 +12,10 @@ SHELL := bash
 .DELETE_ON_ERROR:
 .SUFFIXES:
 
+ifndef GOPATH
+$(error GOPATH not set)
+endif
+
 .PHONY: all prereq fmt vet test clean
 
 sources := $(wildcard *.go)
