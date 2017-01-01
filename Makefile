@@ -16,28 +16,32 @@ ifndef GOPATH
 $(error GOPATH not set)
 endif
 
-.PHONY: all prereq fmt vet test clean
-
 sources := $(wildcard *.go)
 
 all: prereq fmt vet test
+.PHONY: all
 
 prereqs:
 	glide install
+.PHONY: prereq
 
 fmt:
 	go fmt
+.PHONY: fmt
 
 vet:
 	go vet
+.PHONY: vet
 
 test: out/coverage.html
+.PHONY: test
 
 out:
 	mkdir -p out
 
 clean:
 	rm -rfv out
+.PHONY: clean
 
 out/coverage.out: $(sources) out
 	go test -coverprofile=out/coverage.out
