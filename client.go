@@ -1,4 +1,4 @@
-// dashboard.go
+// client.go
 //
 // Author::    Chirantan Mitra
 // Copyright:: Copyright (c) 2015-2017. All rights reserved
