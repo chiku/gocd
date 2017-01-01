@@ -16,6 +16,34 @@ const (
 	maxRetries = 3
 )
 
+type Client struct {
+	client *http.Client
+}
+
+func NewClient() *Client {
+	return &Client{client: &http.Client{}}
+}
+
+func (c Client) Fetch(url string) (Dashboard, error) {
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating Gocd request: %s", err)
+	}
+
+	response, err := fetchGocdDashboard(c.client, request)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching data from Gocd: %s", err)
+	}
+
+	groups, err := parseHTTPResponse(response)
+	if err != nil {
+		return nil, err
+	}
+
+	dashboard := groups.ToDashboard()
+	return dashboard, nil
+}
+
 func fetchGocdDashboard(client *http.Client, request *http.Request) (response *http.Response, err error) {
 	retries := 0
 
@@ -37,7 +65,7 @@ func parseHTTPResponse(response *http.Response) (PipelineGroups, error) {
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response: %s", err)
+		return nil, fmt.Errorf("error reading response: %s, the HTTP status code was %d", err, response.StatusCode)
 	}
 
 	if response.StatusCode != http.StatusOK {
@@ -50,32 +78,4 @@ func parseHTTPResponse(response *http.Response) (PipelineGroups, error) {
 	}
 
 	return groups, nil
-}
-
-type Client struct {
-	client *http.Client
-}
-
-func NewClient() *Client {
-	return &Client{client: &http.Client{}}
-}
-
-func (c *Client) Fetch(url string) (Dashboard, error) {
-	request, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("error creating Gocd request: %s", err)
-	}
-
-	response, err := fetchGocdDashboard(c.client, request)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching data from Gocd: %s", err)
-	}
-
-	groups, err := parseHTTPResponse(response)
-	if err != nil {
-		return nil, err
-	}
-
-	dashboard := groups.ToDashboard()
-	return dashboard, nil
 }
