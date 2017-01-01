@@ -16,7 +16,15 @@ ifndef GOPATH
 $(error GOPATH not set)
 endif
 
+MKDIR = mkdir -p
+RM = rm -rvf
+GO = go
+GLIDE = $(GOPATH)/bin/glide
+
 sources := $(wildcard *.go)
+coverage = out
+coverage_out = $(coverage)/coverage.out
+coverage_html = $(coverage)/coverage.html
 
 all: prereq fmt vet test
 .PHONY: all
@@ -26,26 +34,24 @@ prereqs:
 .PHONY: prereq
 
 fmt:
-	go fmt
+	${GO} fmt
 .PHONY: fmt
 
 vet:
-	go vet
+	${GO} vet
 .PHONY: vet
 
-test: out/coverage.html
+test: $(coverage_html)
 .PHONY: test
 
-out:
-	mkdir -p out
-
 clean:
-	rm -rfv out
+	${RM} out
 .PHONY: clean
 
-out/coverage.out: $(sources) out
-	go test -coverprofile=out/coverage.out
+$(coverage_out): $(sources)
+	${MKDIR} $(coverage)
+	${GO} test -coverprofile=$(coverage_out)
 
-out/coverage.html: $(sources) out/coverage.out
-	go tool cover -func=out/coverage.out
-	go tool cover -html=out/coverage.out -o out/coverage.html
+$(coverage_html): $(coverage_out)
+	${GO} tool cover -func=$(coverage_out)
+	${GO} tool cover -html=$(coverage_out) -o $(coverage_html)
