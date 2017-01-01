@@ -7,145 +7,224 @@
 package gocd_test
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/chiku/gocd"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Dashboard", func() {
-	Context("marshal to JSON", func() {
-		It("has key names of pipelines starting with lower-case", func() {
-			p1 := gocd.DashboardPipeline{
-				Name: "Pipeline",
-				Stages: []gocd.DashboardStage{
-					gocd.DashboardStage{
-						Name:   "Stage",
-						Status: "Passed",
-					},
-				},
-			}
-			dashboard := gocd.Dashboard{p1}
+func TestDashboardToJSON(t *testing.T) {
+	p1 := gocd.DashboardPipeline{
+		Name: "Pipeline",
+		Stages: []gocd.DashboardStage{
+			gocd.DashboardStage{
+				Name:   "Stage",
+				Status: "Passed",
+			},
+		},
+	}
+	dashboard := gocd.Dashboard{p1}
+	body, err := dashboard.ToJSON()
 
-			body, err := dashboard.ToJSON()
-			Expect(err).To(Succeed())
-			Expect(string(body)).To(Equal(`[{"name":"Pipeline","stages":[{"name":"Stage","status":"Passed"}]}]`))
-		})
-	})
+	if err != nil {
+		t.Fatalf("Expected no error marshalling dashboard to JSON: %s", err)
+	}
 
-	Context("filtered sort", func() {
-		s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
-		s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
-		s3 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}}
-		p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
-		p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
-		p3 := gocd.DashboardPipeline{Name: "Pipeline Three", Stages: s3}
-		dashboard := gocd.Dashboard{p2, p1, p3}
+	if string(body) != `[{"name":"Pipeline","stages":[{"name":"Stage","status":"Passed"}]}]` {
+		t.Errorf("Expected valid JSON output, but was: %s", body)
+	}
+}
 
-		Context("when all pipelines are demanded", func() {
-			order := []string{"Pipeline One", "Pipeline Two", "Pipeline Three"}
-			sortedDashboard, ignores := dashboard.FilteredSort(order)
+func TestDashboardFilteredSort(t *testing.T) {
+	s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+	s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+	s3 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}}
+	p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+	p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+	p3 := gocd.DashboardPipeline{Name: "Pipeline Three", Stages: s3}
+	dashboard := gocd.Dashboard{p2, p1, p3}
 
-			It("arranges pipelines by name in the given order", func() {
-				Expect(sortedDashboard).To(HaveLen(3))
+	order := []string{"Pipeline One", "Pipeline Two", "Pipeline Three"}
+	sortedDashboard, ignores := dashboard.FilteredSort(order)
 
-				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
-				Expect(sortedDashboard[0].Stages).To(Equal(s1))
+	if len(sortedDashboard) != 3 {
+		t.Fatalf("Expected sorted dashboard to have 3 entries, but it had %d entries: dashboard: %#v", len(sortedDashboard), sortedDashboard)
+	}
 
-				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Two"))
-				Expect(sortedDashboard[1].Stages).To(Equal(s2))
+	if len(ignores) != 0 {
+		t.Fatalf("Expected nothing to be ignored, but %d were ignored: ignores: %#v", len(ignores), ignores)
+	}
 
-				Expect(sortedDashboard[2].Name).To(Equal("Pipeline Three"))
-				Expect(sortedDashboard[2].Stages).To(Equal(s3))
-			})
+	item0 := sortedDashboard[0]
+	if item0.Name != "Pipeline One" || !reflect.DeepEqual(item0.Stages, s1) {
+		t.Errorf("Expected first stage to be proper, but was: %#v", item0)
+	}
 
-			It("has no ignores", func() {
-				Expect(ignores).To(BeEmpty())
-			})
-		})
+	item1 := sortedDashboard[1]
+	if item1.Name != "Pipeline Two" || !reflect.DeepEqual(item1.Stages, s2) {
+		t.Errorf("Expected second stage to be proper, but was: %#v", item1)
+	}
 
-		Context("when not all pipelines are not mentioned", func() {
-			order := []string{"Pipeline One", "Pipeline Three"}
-			sortedDashboard, ignores := dashboard.FilteredSort(order)
+	item2 := sortedDashboard[2]
+	if item2.Name != "Pipeline Three" || !reflect.DeepEqual(item2.Stages, s3) {
+		t.Errorf("Expected third stage to be proper, but was: %#v", item2)
+	}
+}
 
-			It("leaves out non-matching pipelines", func() {
-				Expect(sortedDashboard).To(HaveLen(2))
-				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
-				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Three"))
-			})
+func TestDashboardFilteredSortWithIgnores(t *testing.T) {
+	s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+	s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+	s3 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}}
+	p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+	p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+	p3 := gocd.DashboardPipeline{Name: "Pipeline Three", Stages: s3}
+	dashboard := gocd.Dashboard{p2, p1, p3}
 
-			It("collects the ignored pipelines", func() {
-				Expect(ignores).To(HaveLen(1))
-				Expect(ignores).To(ContainElement("Pipeline Two"))
-			})
-		})
+	order := []string{"Pipeline One", "Pipeline Three"}
+	sortedDashboard, ignores := dashboard.FilteredSort(order)
 
-		Context("when pipelines are in lower-case", func() {
-			order := []string{"pipeline one", "pipeline three"}
-			sortedDashboard, ignores := dashboard.FilteredSort(order)
+	if len(sortedDashboard) != 2 {
+		t.Fatalf("Expected sorted dashboard to have 2 entries, but it had %d entries: dashboard: %#v", len(sortedDashboard), sortedDashboard)
+	}
 
-			It("ignores case when matching pipelines by name", func() {
-				Expect(sortedDashboard).To(HaveLen(2))
-				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
-				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Three"))
-			})
+	if len(ignores) != 1 {
+		t.Fatalf("Expected one pipeline to be ignored, but %d were ignored: ignores: %#v", len(ignores), ignores)
+	}
 
-			It("maintains the original case of the ignored pipeline names", func() {
-				Expect(ignores).To(HaveLen(1))
-				Expect(ignores).To(ContainElement("Pipeline Two"))
-			})
-		})
+	item0 := sortedDashboard[0]
+	if item0.Name != "Pipeline One" || !reflect.DeepEqual(item0.Stages, s1) {
+		t.Errorf("Expected first stage to be proper, but was: %#v", item0)
+	}
 
-		Context("when order contains an item that is not a pipeline name", func() {
-			order := []string{"Pipeline One", "Pipeline Two", "Pipeline Four"}
-			sortedDashboard, ignores := dashboard.FilteredSort(order)
+	item1 := sortedDashboard[1]
+	if item1.Name != "Pipeline Three" || !reflect.DeepEqual(item1.Stages, s3) {
+		t.Errorf("Expected second stage to be proper, but was: %#v", item1)
+	}
 
-			It("ignores the extra order", func() {
-				Expect(sortedDashboard).To(HaveLen(2))
-				Expect(sortedDashboard[0].Name).To(Equal("Pipeline One"))
-				Expect(sortedDashboard[1].Name).To(Equal("Pipeline Two"))
-				Expect(ignores).To(Equal([]string{"Pipeline Three"}))
-			})
-		})
-	})
+	if ignores[0] != "Pipeline Two" {
+		t.Fatalf("Expected proper ignores, but was: %#v", ignores[0])
+	}
+}
 
-	Context("map names", func() {
-		s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
-		s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
-		p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
-		p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
-		dashboard := gocd.Dashboard{p1, p2}
+func TestDashboardFilteredSortWithDifferentCase(t *testing.T) {
+	s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+	s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+	s3 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}}
+	p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+	p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+	p3 := gocd.DashboardPipeline{Name: "Pipeline Three", Stages: s3}
+	dashboard := gocd.Dashboard{p2, p1, p3}
 
-		Context("when all pipelines are mapped", func() {
-			mapping := map[string]string{
-				"Pipeline One": "Pipeline A",
-				"Pipeline Two": "Pipeline B",
-			}
-			mappedDashboard := dashboard.MapNames(mapping)
+	order := []string{"pipeline one", "pipeline three"}
+	sortedDashboard, ignores := dashboard.FilteredSort(order)
 
-			It("changes the names of the pipelines", func() {
-				Expect(mappedDashboard).To(HaveLen(2))
+	if len(sortedDashboard) != 2 {
+		t.Fatalf("Expected sorted dashboard to have 2 entries, but it had %d entries: dashboard: %#v", len(sortedDashboard), sortedDashboard)
+	}
 
-				Expect(mappedDashboard[0].Name).To(Equal("Pipeline A"))
-				Expect(mappedDashboard[0].Stages).To(Equal(s1))
+	if len(ignores) != 1 {
+		t.Fatalf("Expected one pipeline to be ignored, but %d were ignored: ignores: %#v", len(ignores), ignores)
+	}
 
-				Expect(mappedDashboard[1].Name).To(Equal("Pipeline B"))
-				Expect(mappedDashboard[1].Stages).To(Equal(s2))
-			})
-		})
+	item0 := sortedDashboard[0]
+	if item0.Name != "Pipeline One" || !reflect.DeepEqual(item0.Stages, s1) {
+		t.Errorf("Expected first stage to be proper, but was: %#v", item0)
+	}
 
-		Context("when no pipelines are mapped", func() {
-			mapping := map[string]string{}
-			mappedDashboard := dashboard.MapNames(mapping)
+	item1 := sortedDashboard[1]
+	if item1.Name != "Pipeline Three" || !reflect.DeepEqual(item1.Stages, s3) {
+		t.Errorf("Expected second stage to be proper, but was: %#v", item1)
+	}
 
-			It("retains the original names of the pipelines", func() {
-				Expect(mappedDashboard).To(HaveLen(2))
+	if ignores[0] != "Pipeline Two" {
+		t.Fatalf("Expected proper ignores, but was: %#v", ignores[0])
+	}
+}
 
-				Expect(mappedDashboard[0].Name).To(Equal("Pipeline One"))
-				Expect(mappedDashboard[0].Stages).To(Equal(s1))
+func TestDashboardFilteredSortWithUnknownPipelines(t *testing.T) {
+	s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+	s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+	s3 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Three", Status: "Passed"}}
+	p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+	p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+	p3 := gocd.DashboardPipeline{Name: "Pipeline Three", Stages: s3}
+	dashboard := gocd.Dashboard{p2, p1, p3}
 
-				Expect(mappedDashboard[1].Name).To(Equal("Pipeline Two"))
-				Expect(mappedDashboard[1].Stages).To(Equal(s2))
-			})
-		})
-	})
-})
+	order := []string{"Pipeline One", "Pipeline Two", "Pipeline Four"}
+	sortedDashboard, ignores := dashboard.FilteredSort(order)
+
+	if len(sortedDashboard) != 2 {
+		t.Fatalf("Expected sorted dashboard to have 2 entries, but it had %d entries: dashboard: %#v", len(sortedDashboard), sortedDashboard)
+	}
+
+	if len(ignores) != 1 {
+		t.Fatalf("Expected one pipeline to be ignored, but %d were ignored: ignores: %#v", len(ignores), ignores)
+	}
+
+	item0 := sortedDashboard[0]
+	if item0.Name != "Pipeline One" || !reflect.DeepEqual(item0.Stages, s1) {
+		t.Errorf("Expected first stage to be proper, but was: %#v", item0)
+	}
+
+	item1 := sortedDashboard[1]
+	if item1.Name != "Pipeline Two" || !reflect.DeepEqual(item1.Stages, s2) {
+		t.Errorf("Expected second stage to be proper, but was: %#v", item1)
+	}
+
+	if ignores[0] != "Pipeline Three" {
+		t.Fatalf("Expected proper ignores, but was: %#v", ignores[0])
+	}
+}
+
+func TestDashboardMapNames(t *testing.T) {
+	s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+	s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+	p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+	p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+	dashboard := gocd.Dashboard{p1, p2}
+
+	mapping := map[string]string{
+		"Pipeline One": "Pipeline A",
+		"Pipeline Two": "Pipeline B",
+	}
+	mappedDashboard := dashboard.MapNames(mapping)
+
+	if len(mappedDashboard) != 2 {
+		t.Fatalf("Expected mapped dashboard to have 2 entries, but it had %d entries: dashboard: %#v", len(mappedDashboard), mappedDashboard)
+	}
+
+	item0 := mappedDashboard[0]
+	if item0.Name != "Pipeline A" || !reflect.DeepEqual(item0.Stages, s1) {
+		t.Errorf("Expected first stage to have new name, but was: %#v", item0)
+	}
+
+	item1 := mappedDashboard[1]
+	if item1.Name != "Pipeline B" || !reflect.DeepEqual(item1.Stages, s2) {
+		t.Errorf("Expected second stage to have new name, but was: %#v", item1)
+	}
+}
+
+func TestDashboardMapNamesWhenNoMatch(t *testing.T) {
+	s1 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage One", Status: "Passed"}}
+	s2 := []gocd.DashboardStage{gocd.DashboardStage{Name: "Stage Two", Status: "Passed"}}
+	p1 := gocd.DashboardPipeline{Name: "Pipeline One", Stages: s1}
+	p2 := gocd.DashboardPipeline{Name: "Pipeline Two", Stages: s2}
+	dashboard := gocd.Dashboard{p1, p2}
+
+	mapping := map[string]string{}
+	mappedDashboard := dashboard.MapNames(mapping)
+
+	if len(mappedDashboard) != 2 {
+		t.Fatalf("Expected mapped dashboard to have 2 entries, but it had %d entries: dashboard: %#v", len(mappedDashboard), mappedDashboard)
+	}
+
+	item0 := mappedDashboard[0]
+	if item0.Name != "Pipeline One" || !reflect.DeepEqual(item0.Stages, s1) {
+		t.Errorf("Expected first stage to have original name, but was: %#v", item0)
+	}
+
+	item1 := mappedDashboard[1]
+	if item1.Name != "Pipeline Two" || !reflect.DeepEqual(item1.Stages, s2) {
+		t.Errorf("Expected second stage to have original name, but was: %#v", item1)
+	}
+}
