@@ -7,11 +7,11 @@
 package gocd_test
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/chiku/gocd"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
 func TestToDashboard(t *testing.T) {
@@ -27,9 +27,9 @@ func TestToDashboard(t *testing.T) {
 		t.Fatalf("Expected 1 item in dashboard, but has %d items: dashboard: %#v", len(dashboard), dashboard)
 	}
 
-	item0 := dashboard[0]
-	if item0.Name != "Pipeline One" {
-		t.Errorf("Expected proper pipeline name, but was: %s", item0.Name)
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name, but was: %s", dashboard0.Name)
 	}
 
 	dashboardStages := dashboard[0].Stages
@@ -38,7 +38,7 @@ func TestToDashboard(t *testing.T) {
 	}
 
 	if dashboardStages[0].Name != "Stage One" || dashboardStages[0].Status != "Unknown" {
-		t.Fatalf("Expected first stage to be proper, but was: %#v", dashboardStages[0])
+		t.Errorf("Expected first stage to be proper, but was: %#v", dashboardStages[0])
 	}
 }
 
@@ -57,9 +57,9 @@ func TestToDashboardWithMultipleInstances(t *testing.T) {
 		t.Fatalf("Expected 1 item in dashboard for latest instance, but has %d items: dashboard: %#v", len(dashboard), dashboard)
 	}
 
-	item0 := dashboard[0]
-	if item0.Name != "Pipeline One" {
-		t.Errorf("Expected proper pipeline name, but was: %s", item0.Name)
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name, but was: %s", dashboard0.Name)
 	}
 
 	dashboardStages := dashboard[0].Stages
@@ -68,7 +68,7 @@ func TestToDashboardWithMultipleInstances(t *testing.T) {
 	}
 
 	if dashboardStages[0].Name != "Stage New" || dashboardStages[0].Status != "Passed" {
-		t.Fatalf("Expected first stage to be proper, but was: %#v", dashboardStages[0])
+		t.Errorf("Expected first stage to be proper, but was: %#v", dashboardStages[0])
 	}
 }
 
@@ -89,9 +89,9 @@ func TestToDashboardWithCurrentStatusAsUnknown(t *testing.T) {
 		t.Fatalf("Expected 1 item in dashboard for latest instance, but has %d items: dashboard: %#v", len(dashboard), dashboard)
 	}
 
-	item0 := dashboard[0]
-	if item0.Name != "Pipeline One" {
-		t.Errorf("Expected proper pipeline name, but was: %s", item0.Name)
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name, but was: %s", dashboard0.Name)
 	}
 
 	dashboardStages := dashboard[0].Stages
@@ -100,11 +100,11 @@ func TestToDashboardWithCurrentStatusAsUnknown(t *testing.T) {
 	}
 
 	if dashboardStages[0].Name != "Stage X" || dashboardStages[0].Status != "Passed" {
-		t.Fatalf("Expected first stage to use status from previous run, but was: %#v", dashboardStages[0])
+		t.Errorf("Expected first stage to use status from previous builds, but was: %#v", dashboardStages[0])
 	}
 }
 
-func TestToDashboardWithCurrentAndOlderStatusAsUnknown(t *testing.T) {
+func TestToDashboardWithCurrentAndOlderStatusesAsUnknown(t *testing.T) {
 	stagesForLatestInstance := []gocd.Stage{{Name: "Stage X", Status: "Unknown"}}
 	stagesForMinus1Instance := []gocd.Stage{{Name: "Stage X", Status: "Unknown"}}
 	latestInstance := gocd.Instance{Stages: stagesForLatestInstance}
@@ -119,9 +119,9 @@ func TestToDashboardWithCurrentAndOlderStatusAsUnknown(t *testing.T) {
 		t.Fatalf("Expected 1 item in dashboard for latest instance, but has %d items: dashboard: %#v", len(dashboard), dashboard)
 	}
 
-	item0 := dashboard[0]
-	if item0.Name != "Pipeline One" {
-		t.Errorf("Expected proper pipeline name, but was: %s", item0.Name)
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name, but was: %s", dashboard0.Name)
 	}
 
 	dashboardStages := dashboard[0].Stages
@@ -130,7 +130,132 @@ func TestToDashboardWithCurrentAndOlderStatusAsUnknown(t *testing.T) {
 	}
 
 	if dashboardStages[0].Name != "Stage X" || dashboardStages[0].Status != "Unknown" {
-		t.Fatalf("Expected first stage to have unknown status, but was: %#v", dashboardStages[0])
+		t.Errorf("Expected first stage to have unknown status, but was: %#v", dashboardStages[0])
+	}
+}
+
+func TestToDashboardWithCurrentAndOlderStatusesUnknownButPreviousInstance(t *testing.T) {
+	stagesForLatestInstance := []gocd.Stage{{Name: "Stage X", Status: "Unknown"}}
+	stagesForMinus1Instance := []gocd.Stage{{Name: "Stage X", Status: "Unknown"}}
+	latestInstance := gocd.Instance{Stages: stagesForLatestInstance}
+	minus1Instance := gocd.Instance{Stages: stagesForMinus1Instance}
+	previousInstance := gocd.PreviousInstance{Result: "Passed"}
+	instances := []gocd.Instance{minus1Instance, latestInstance}
+	pipelines := []gocd.Pipeline{{Name: "Pipeline One", Instances: instances, PreviousInstance: previousInstance}}
+	groups := gocd.PipelineGroups{gocd.PipelineGroup{Pipelines: pipelines}}
+
+	dashboard := groups.ToDashboard()
+
+	if len(dashboard) != 1 {
+		t.Fatalf("Expected 1 item in dashboard for latest instance, but has %d items: dashboard: %#v", len(dashboard), dashboard)
+	}
+
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name, but was: %s", dashboard0.Name)
+	}
+
+	dashboardStages := dashboard[0].Stages
+	if len(dashboardStages) != 1 {
+		t.Fatalf("Expected 1 stage, but has %d stages: stages: %#v", len(dashboardStages), dashboardStages)
+	}
+
+	if dashboardStages[0].Name != "Stage X" || dashboardStages[0].Status != "Passed" {
+		t.Errorf("Expected first stage to have status from previous instance run, but was: %#v", dashboardStages[0])
+	}
+}
+
+func TestToDashboardWithCurrentStatusBuildingButPreviousFailed(t *testing.T) {
+	stagesForLatestInstance := []gocd.Stage{{Name: "Stage X", Status: "Building"}}
+	latestInstance := gocd.Instance{Stages: stagesForLatestInstance}
+	previousInstance := gocd.PreviousInstance{Result: "Failed"}
+	instances := []gocd.Instance{latestInstance}
+	pipelines := []gocd.Pipeline{{Name: "Pipeline One", Instances: instances, PreviousInstance: previousInstance}}
+	groups := gocd.PipelineGroups{gocd.PipelineGroup{Pipelines: pipelines}}
+
+	dashboard := groups.ToDashboard()
+
+	if len(dashboard) != 1 {
+		t.Fatalf("Expected 1 item in dashboard for latest instance, but has %d items: dashboard: %#v", len(dashboard), dashboard)
+	}
+
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name, but was: %s", dashboard0.Name)
+	}
+
+	dashboardStages := dashboard[0].Stages
+	if len(dashboardStages) != 1 {
+		t.Fatalf("Expected 1 stage, but has %d stages: stages: %#v", len(dashboardStages), dashboardStages)
+	}
+
+	if dashboardStages[0].Name != "Stage X" || dashboardStages[0].Status != "Recovering" {
+		t.Errorf("Expected first stage to have recovering status, but was: %#v", dashboardStages[0])
+	}
+}
+
+func TestToDashboardWithMultiplePipelineGroupsPipelinesInstancesAndStages(t *testing.T) {
+	stage1old1 := gocd.Stage{Name: "Stage 1.1.1", Status: "Passed"}
+	stage1old2 := gocd.Stage{Name: "Stage 1.1.2", Status: "Failed"}
+	stage1new1 := gocd.Stage{Name: "Stage 1.2.1", Status: "Cancelled"}
+	stage1new2 := gocd.Stage{Name: "Stage 1.2.2", Status: "Failing"}
+	stage2old1 := gocd.Stage{Name: "Stage 2.1.1", Status: "Building"}
+	stage2old2 := gocd.Stage{Name: "Stage 2.1.2", Status: "Unknown"}
+	stage2new1 := gocd.Stage{Name: "Stage 2.2.1", Status: "Passed"}
+	stage2new2 := gocd.Stage{Name: "Stage 2.2.2", Status: "Failed"}
+	stages1old := []gocd.Stage{stage1old1, stage1old2}
+	stages1new := []gocd.Stage{stage1new1, stage1new2}
+	stages2old := []gocd.Stage{stage2old1, stage2old2}
+	stages2new := []gocd.Stage{stage2new1, stage2new2}
+	instance1old := gocd.Instance{Stages: stages1old}
+	instance1new := gocd.Instance{Stages: stages1new}
+	instance2old := gocd.Instance{Stages: stages2old}
+	instance2new := gocd.Instance{Stages: stages2new}
+	instances1 := []gocd.Instance{instance1old, instance1new}
+	instances2 := []gocd.Instance{instance2old, instance2new}
+	pipeline1 := gocd.Pipeline{Instances: instances1, Name: "Pipeline One"}
+	pipeline2 := gocd.Pipeline{Instances: instances2, Name: "Pipeline Two"}
+	pipelines := []gocd.Pipeline{pipeline1, pipeline2}
+	groups := gocd.PipelineGroups{gocd.PipelineGroup{Pipelines: pipelines}}
+
+	dashboard := groups.ToDashboard()
+
+	if len(dashboard) != 2 {
+		t.Fatalf("Expected 2 items in dashboard, but has %d item(s): dashboard: %#v", len(dashboard), dashboard)
+	}
+
+	dashboard0 := dashboard[0]
+	if dashboard0.Name != "Pipeline One" {
+		t.Errorf("Expected proper pipeline name for first pipeline, but was: %s", dashboard0.Name)
+	}
+
+	dashboard0Stages := dashboard[0].Stages
+	if len(dashboard0Stages) != 2 {
+		t.Fatalf("Expected 2 stages, but has %d stage(s) in first pipeline: stages: %#v", len(dashboard0Stages), dashboard0Stages)
+	}
+
+	if !reflect.DeepEqual(dashboard0Stages[0], gocd.DashboardStage{Name: "Stage 1.2.1", Status: "Cancelled"}) {
+		t.Errorf("Expected proper pipeline 1 stage 1, but was: #%v", dashboard0Stages[0])
+	}
+	if !reflect.DeepEqual(dashboard0Stages[1], gocd.DashboardStage{Name: "Stage 1.2.2", Status: "Failing"}) {
+		t.Errorf("Expected proper pipeline 1 stage 2, but was: #%v", dashboard0Stages[1])
+	}
+
+	dashboard1 := dashboard[1]
+	if dashboard1.Name != "Pipeline Two" {
+		t.Errorf("Expected proper pipeline name for second pipeline, but was: %s", dashboard1.Name)
+	}
+
+	dashboard1Stages := dashboard[1].Stages
+	if len(dashboard1Stages) != 2 {
+		t.Fatalf("Expected 2 stage, but has %d stage(s) in second pipeline: stages: %#v", len(dashboard1Stages), dashboard1Stages)
+	}
+
+	if !reflect.DeepEqual(dashboard1Stages[0], gocd.DashboardStage{Name: "Stage 2.2.1", Status: "Passed"}) {
+		t.Errorf("Expected proper pipeline 1 stage 1, but was: #%v", dashboard1Stages[0])
+	}
+	if !reflect.DeepEqual(dashboard1Stages[1], gocd.DashboardStage{Name: "Stage 2.2.2", Status: "Failed"}) {
+		t.Errorf("Expected proper pipeline 1 stage 2, but was: #%v", dashboard1Stages[1])
 	}
 }
 
@@ -179,139 +304,86 @@ func TestToDashboardWithoutStages(t *testing.T) {
 	}
 }
 
-var _ = Describe("PipelineGroups", func() {
-	Context("with pipeline-group, pipeline, multiple instances and stage", func() {
-		Context("with current and older statuses as unknown", func() {
-			Context("with known previous instance status", func() {
-				stagesForLatestInstance := []gocd.Stage{{Name: "Stage X", Status: "Unknown"}}
-				stagesForMinus1Instance := []gocd.Stage{{Name: "Stage X", Status: "Unknown"}}
-				latestInstance := gocd.Instance{Stages: stagesForLatestInstance}
-				minus1Instance := gocd.Instance{Stages: stagesForMinus1Instance}
-				previousInstance := gocd.PreviousInstance{Result: "Passed"}
-				instances := []gocd.Instance{minus1Instance, latestInstance}
-				pipelines := []gocd.Pipeline{{Name: "Pipeline One", Instances: instances, PreviousInstance: previousInstance}}
-				groups := gocd.PipelineGroups{gocd.PipelineGroup{Pipelines: pipelines}}
-				dashboard := groups.ToDashboard()
+func TestNewPipelineGroups(t *testing.T) {
+	const dashboardJSON = `[{
+	  "name": "Group",
+	  "pipelines": [
+	    {
+	      "name": "Pipeline",
+	      "instances": [
+	        {
+	          "stages": [
+	            { "name": "StageOne", "status": "Passed" },
+	            { "name": "StageTwo", "status": "Building" }
+	          ]
+	        }
+	      ],
+	      "previous_instance": {
+	        "result": "Passed"
+	      }
+	    }
+	  ]
+	}
+	]`
 
-				It("uses the status of previous instance", func() {
-					Expect(dashboard).To(HaveLen(1))
-					dashboardStages := dashboard[0].Stages
-					Expect(dashboardStages).To(HaveLen(1))
-					Expect(dashboardStages[0].Name).To(Equal("Stage X"))
-					Expect(dashboardStages[0].Status).To(Equal("Passed"))
-				})
-			})
-		})
+	groups, err := gocd.NewPipelineGroups([]byte(dashboardJSON))
 
-		Context("with previous result as failed and current status as building", func() {
-			stagesForLatestInstance := []gocd.Stage{{Name: "Stage X", Status: "Building"}}
-			latestInstance := gocd.Instance{Stages: stagesForLatestInstance}
-			previousInstance := gocd.PreviousInstance{Result: "Failed"}
-			instances := []gocd.Instance{latestInstance}
-			pipelines := []gocd.Pipeline{{Name: "Pipeline One", Instances: instances, PreviousInstance: previousInstance}}
-			groups := gocd.PipelineGroups{gocd.PipelineGroup{Pipelines: pipelines}}
-			dashboard := groups.ToDashboard()
+	if err != nil {
+		t.Fatalf("Expected no error when creating pipeline groups from valid JSON, but was: %s", err)
+	}
 
-			It("uses marks the status as recovering", func() {
-				Expect(dashboard).To(HaveLen(1))
-				dashboardStages := dashboard[0].Stages
-				Expect(dashboardStages).To(HaveLen(1))
-				Expect(dashboardStages[0].Name).To(Equal("Stage X"))
-				Expect(dashboardStages[0].Status).To(Equal("Recovering"))
-			})
-		})
-	})
+	if len(groups) != 1 {
+		t.Fatalf("Expected 1 groups, but has %d groups: groups: %#v", len(groups), groups)
+	}
 
-	Context("with multiple pipeline-group, pipelines, instances and stages", func() {
-		stage_1_old_1 := gocd.Stage{Name: "Stage 1.1.1", Status: "Passed"}
-		stage_1_old_2 := gocd.Stage{Name: "Stage 1.1.2", Status: "Failed"}
-		stage_1_new_1 := gocd.Stage{Name: "Stage 1.2.1", Status: "Cancelled"}
-		stage_1_new_2 := gocd.Stage{Name: "Stage 1.2.2", Status: "Failing"}
-		stage_2_old_1 := gocd.Stage{Name: "Stage 2.1.1", Status: "Building"}
-		stage_2_old_2 := gocd.Stage{Name: "Stage 2.1.2", Status: "Unknown"}
-		stage_2_new_1 := gocd.Stage{Name: "Stage 2.2.1", Status: "Passed"}
-		stage_2_new_2 := gocd.Stage{Name: "Stage 2.2.2", Status: "Failed"}
-		stages_1_old := []gocd.Stage{stage_1_old_1, stage_1_old_2}
-		stages_1_new := []gocd.Stage{stage_1_new_1, stage_1_new_2}
-		stages_2_old := []gocd.Stage{stage_2_old_1, stage_2_old_2}
-		stages_2_new := []gocd.Stage{stage_2_new_1, stage_2_new_2}
-		instance_1_old := gocd.Instance{Stages: stages_1_old}
-		instance_1_new := gocd.Instance{Stages: stages_1_new}
-		instance_2_old := gocd.Instance{Stages: stages_2_old}
-		instance_2_new := gocd.Instance{Stages: stages_2_new}
-		instances_1 := []gocd.Instance{instance_1_old, instance_1_new}
-		instances_2 := []gocd.Instance{instance_2_old, instance_2_new}
-		pipeline_1 := gocd.Pipeline{Instances: instances_1, Name: "Pipeline One"}
-		pipeline_2 := gocd.Pipeline{Instances: instances_2, Name: "Pipeline Two"}
-		pipelines := []gocd.Pipeline{pipeline_1, pipeline_2}
-		groups := gocd.PipelineGroups{gocd.PipelineGroup{Pipelines: pipelines}}
-		dashboard := groups.ToDashboard()
+	pipelines := groups[0].Pipelines
+	if len(pipelines) != 1 {
+		t.Fatalf("Expected first groups to have 1 pipeline, but had %d pipelines: pipelines: %#v", len(pipelines), pipelines)
+	}
 
-		It("has simple-pipelines", func() {
-			Expect(dashboard).To(HaveLen(2))
-			dashboard_1 := dashboard[0]
-			dashboard_2 := dashboard[1]
-			Expect(dashboard_1.Name).To(Equal("Pipeline One"))
-			Expect(dashboard_2.Name).To(Equal("Pipeline Two"))
-			dashboardStages_1 := dashboard_1.Stages
-			dashboardStages_2 := dashboard_2.Stages
-			Expect(dashboardStages_1).To(HaveLen(2))
-			Expect(dashboardStages_2).To(HaveLen(2))
-			Expect(dashboardStages_1[0]).To(Equal(gocd.DashboardStage{Name: "Stage 1.2.1", Status: "Cancelled"}))
-			Expect(dashboardStages_1[1]).To(Equal(gocd.DashboardStage{Name: "Stage 1.2.2", Status: "Failing"}))
-			Expect(dashboardStages_2[0]).To(Equal(gocd.DashboardStage{Name: "Stage 2.2.1", Status: "Passed"}))
-			Expect(dashboardStages_2[1]).To(Equal(gocd.DashboardStage{Name: "Stage 2.2.2", Status: "Failed"}))
-		})
-	})
+	pipeline := pipelines[0]
+	if pipeline.Name != "Pipeline" {
+		t.Errorf("Expected pipeline to have proper name, but was: %s", pipeline.Name)
+	}
 
-	Context("unmarshal from JSON", func() {
-		const dashboardJSON = `[{
-		  "name": "Group",
-		  "pipelines": [
-		    {
-		      "name": "Pipeline",
-		      "instances": [
-		        {
-		          "stages": [
-		            { "name": "StageOne", "status": "Passed" },
-		            { "name": "StageTwo", "status": "Building" }
-		          ]
-		        }
-		      ],
-		      "previous_instance": {
-		        "result": "Passed"
-		      }
-		    }
-		  ]
-		}
-		]`
+	instances := pipeline.Instances
+	if len(instances) != 1 {
+		t.Fatalf("Expected pipeline to have 1 instance, but had %d instances: instances: %#v", len(instances), instances)
+	}
 
-		It("is created from byte array", func() {
-			groups, err := gocd.NewPipelineGroups([]byte(dashboardJSON))
-			Expect(err).To(Succeed())
-			Expect(groups).To(HaveLen(1))
-			Expect(groups[0].Pipelines).To(HaveLen(1))
-			pipeline := groups[0].Pipelines[0]
-			Expect(pipeline.Name).To(Equal("Pipeline"))
-			Expect(pipeline.Instances).To(HaveLen(1))
-			instance := pipeline.Instances[0]
-			Expect(instance.Stages).To(HaveLen(2))
-			stages := instance.Stages
-			Expect(stages[0].Name).To(Equal("StageOne"))
-			Expect(stages[0].Status).To(Equal("Passed"))
-			Expect(stages[1].Name).To(Equal("StageTwo"))
-			Expect(stages[1].Status).To(Equal("Building"))
-			previousInstance := pipeline.PreviousInstance
-			Expect(previousInstance.Result).To(Equal("Passed"))
-		})
+	stages := instances[0].Stages
+	if len(stages) != 2 {
+		t.Fatalf("Expected instance to have 2 stages, but had %d stages: stages: %#v", len(stages), stages)
+	}
 
-		Context("on failure", func() {
-			It("has error", func() {
-				groups, err := gocd.NewPipelineGroups([]byte(`Random`))
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("error unmarshalling Gocd JSON: "))
-				Expect(groups).To(BeNil())
-			})
-		})
-	})
-})
+	stage0 := stages[0]
+	if stage0.Name != "StageOne" || stage0.Status != "Passed" {
+		t.Errorf("Expected first stage to have proper name and status, but was: %#v", stage0)
+	}
+
+	stage1 := stages[1]
+	if stage1.Name != "StageTwo" || stage1.Status != "Building" {
+		t.Errorf("Expected second stage to have proper name and status, but was: %#v", stage1)
+	}
+
+	previousInstance := pipeline.PreviousInstance
+	if previousInstance.Result != "Passed" {
+		t.Errorf("Expected proper previous pipeline instance, but was: %#v", previousInstance)
+	}
+}
+
+func TestNewPipelineGroupsOnError(t *testing.T) {
+	groups, err := gocd.NewPipelineGroups([]byte(`Random`))
+
+	if err == nil {
+		t.Fatalf("Expected error when creating pipeline groups from malformed JSON, but was: %s", err)
+	}
+
+	if !strings.Contains(err.Error(), "error unmarshalling Gocd JSON: ") {
+		t.Errorf("Expected error message about JSON unmarshall error, but was: %s", err.Error())
+	}
+
+	if groups != nil {
+		t.Fatalf("Expected no invalid groups, but was: %#v", groups)
+	}
+}
