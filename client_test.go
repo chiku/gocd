@@ -9,147 +9,162 @@ package gocd_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"testing"
 
 	"github.com/chiku/gocd"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Client", func() {
-	Context("fetching dashboard.json from gocd", func() {
-		Context("when success", func() {
-			const serverResponse = `[{
-				"name": "Group",
-				"pipelines": [
-				  {
-				    "name": "Pipeline",
-				    "instances": [
-				      {
-				        "stages": [
-				          { "name": "StageOne", "status": "Passed" },
-				          { "name": "StageTwo", "status": "Building" }
-				        ]
-				      }
-				    ],
-				    "previous_instance": {
-				      "result": "Passed"
-				    }
-				  }
-				]
-				}
-			]`
+func TestFetch(t *testing.T) {
+	const serverResponse = `[{
+		"name": "Group",
+		"pipelines": [
+		  {
+		    "name": "Pipeline",
+		    "instances": [
+		      {
+		        "stages": [
+		          { "name": "StageOne", "status": "Passed" },
+		          { "name": "StageTwo", "status": "Building" }
+		        ]
+		      }
+		    ],
+		    "previous_instance": {
+		      "result": "Passed"
+		    }
+		  }
+		]
+		}
+	]`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(serverResponse))
+	}))
+	defer ts.Close()
 
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte(serverResponse))
-			}))
-			defer ts.Close()
+	client := gocd.NewClient()
+	dashboard, err := client.Fetch(ts.URL)
 
-			client := gocd.NewClient()
-			dashboard, err := client.Fetch(ts.URL)
+	if err != nil {
+		t.Fatalf("Expected no error fetching valid response: %s", err)
+	}
 
-			It("returns dashboard", func() {
-				Expect(dashboard).To(HaveLen(1))
-				pipeline := dashboard[0]
-				Expect(pipeline.Name).To(Equal("Pipeline"))
-				stages := pipeline.Stages
-				Expect(stages).To(HaveLen(2))
-				Expect(stages[0].Name).To(Equal("StageOne"))
-				Expect(stages[0].Status).To(Equal("Passed"))
-				Expect(stages[1].Name).To(Equal("StageTwo"))
-				Expect(stages[1].Status).To(Equal("Building"))
-			})
+	if len(dashboard) != 1 {
+		t.Fatalf("Expected dashboard to contain 1 item, but it had %d items: dashboard: %#v", len(dashboard), dashboard)
+	}
 
-			It("has no errors", func() {
-				Expect(err).To(Succeed())
-			})
-		})
+	pipeline := dashboard[0]
+	if pipeline.Name != "Pipeline" {
+		t.Errorf("Expected proper pipeline name, but was: %v", pipeline.Name)
+	}
 
-		Context("when server response in not 200 OK", func() {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("Forbidden!"))
-			}))
-			defer ts.Close()
+	stages := pipeline.Stages
+	if len(stages) != 2 {
+		t.Fatalf("Expected stages to contain 2 items, but it had %d items: stages: %#v", len(stages), stages)
+	}
 
-			client := gocd.NewClient()
-			dashboard, err := client.Fetch(ts.URL)
+	stage0 := stages[0]
+	if stage0.Name != "StageOne" || stage0.Status != "Passed" {
+		t.Errorf("Expected first stage to be proper, but was: %#v", stage0)
+	}
 
-			It("has no dashboard", func() {
-				Expect(dashboard).To(BeNil())
-			})
+	stage1 := stages[1]
+	if stage1.Name != "StageTwo" || stage1.Status != "Building" {
+		t.Errorf("Expected second stage to be proper, but was: %#v", stage1)
+	}
+}
 
-			It("has errors", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("error fetching response from Gocd: the HTTP status code was 403, body: Forbidden!"))
-			})
-		})
+func TestFetchWhenServerResponseNot200(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Forbidden!"))
+	}))
+	defer ts.Close()
 
-		Context("when server response body is malformed", func() {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Bad response"))
-			}))
-			defer ts.Close()
+	client := gocd.NewClient()
+	dashboard, err := client.Fetch(ts.URL)
 
-			client := gocd.NewClient()
-			dashboard, err := client.Fetch(ts.URL)
+	if err == nil {
+		t.Fatalf("Expected error fetching invalid response: %s", err)
+	}
+	if err.Error() != "error fetching response from Gocd: the HTTP status code was 403, body: Forbidden!" {
+		t.Errorf("Expected proper error message but was: %s", err.Error())
+	}
 
-			It("has no dashboard", func() {
-				Expect(dashboard).To(BeNil())
-			})
+	if dashboard != nil {
+		t.Errorf("Expected no invalid dashboard, but was: %#v", dashboard)
+	}
+}
 
-			It("has errors", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("error unmarshalling Gocd JSON: "))
-			})
-		})
+func TestFetchWhenServerResponseMalformed(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Bad response"))
+	}))
+	defer ts.Close()
 
-		Context("when server doesn't respond", func() {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Bad response"))
-			}))
-			ts.Close()
+	client := gocd.NewClient()
+	dashboard, err := client.Fetch(ts.URL)
 
-			client := gocd.NewClient()
-			dashboard, err := client.Fetch(ts.URL)
+	if err == nil {
+		t.Fatalf("Expected error fetching invalid response: %s", err)
+	}
+	if !strings.Contains(err.Error(), "error unmarshalling Gocd JSON: ") {
+		t.Errorf("Expected proper error message but was: %s", err.Error())
+	}
 
-			It("has no dashboard", func() {
-				Expect(dashboard).To(BeNil())
-			})
+	if dashboard != nil {
+		t.Errorf("Expected no invalid dashboard, but was: %#v", dashboard)
+	}
+}
 
-			It("has errors", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("error fetching data from Gocd: "))
-				Expect(err.Error()).To(ContainSubstring("(after 3 retries)"))
-			})
-		})
+func TestFetchWhenServerDoesNotRespondAfterRetries(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Bad response"))
+	}))
+	ts.Close()
 
-		Context("when <>", func() {
-			client := gocd.NewClient()
-			dashboard, err := client.Fetch("<>")
+	client := gocd.NewClient()
+	dashboard, err := client.Fetch(ts.URL)
 
-			It("has no dashboard", func() {
-				Expect(dashboard).To(BeNil())
-			})
+	if err == nil {
+		t.Fatalf("Expected error fetching invalid response: %s", err)
+	}
+	if !strings.Contains(err.Error(), "error fetching data from Gocd: ") || !strings.Contains(err.Error(), "(after 3 retries)") {
+		t.Errorf("Expected proper error message with retries but was: %s", err.Error())
+	}
 
-			It("has errors", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("error fetching data from Gocd: "))
-				Expect(err.Error()).To(ContainSubstring("(after 3 retries)"))
-			})
-		})
+	if dashboard != nil {
+		t.Errorf("Expected no invalid dashboard, but was: %#v", dashboard)
+	}
+}
 
-		Context("when request creation fails", func() {
-			client := gocd.NewClient()
-			dashboard, err := client.Fetch("::")
+func TestFetchWhenServerDoesNotRespond(t *testing.T) {
+	client := gocd.NewClient()
+	dashboard, err := client.Fetch("<>")
 
-			It("has no dashboard", func() {
-				Expect(dashboard).To(BeNil())
-			})
+	if err == nil {
+		t.Fatalf("Expected error fetching invalid response: %s", err)
+	}
+	if !strings.Contains(err.Error(), "error fetching data from Gocd: ") || !strings.Contains(err.Error(), "(after 3 retries)") {
+		t.Errorf("Expected proper error message with retries but was: %s", err.Error())
+	}
 
-			It("has errors", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("error creating Gocd request: "))
-			})
-		})
-	})
-})
+	if dashboard != nil {
+		t.Errorf("Expected no invalid dashboard, but was: %#v", dashboard)
+	}
+}
+
+func TestFetchWhenRequestCreationFails(t *testing.T) {
+	client := gocd.NewClient()
+	dashboard, err := client.Fetch("::")
+
+	if err == nil {
+		t.Fatalf("Expected error fetching invalid response: %s", err)
+	}
+	if !strings.Contains(err.Error(), "error creating Gocd request: ") {
+		t.Errorf("Expected proper error message but was: %s", err.Error())
+	}
+
+	if dashboard != nil {
+		t.Errorf("Expected no invalid dashboard, but was: %#v", dashboard)
+	}
+}
