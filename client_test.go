@@ -15,7 +15,7 @@ import (
 	"github.com/chiku/gocd"
 )
 
-func TestFetch(t *testing.T) {
+func TestClientFetch(t *testing.T) {
 	const serverResponse = `[{
 		"name": "Group",
 		"pipelines": [
@@ -73,7 +73,7 @@ func TestFetch(t *testing.T) {
 	}
 }
 
-func TestFetchWhenServerResponseNot200(t *testing.T) {
+func TestClientFetchWhenServerResponseNot200(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("Forbidden!"))
@@ -95,7 +95,7 @@ func TestFetchWhenServerResponseNot200(t *testing.T) {
 	}
 }
 
-func TestFetchWhenServerResponseMalformed(t *testing.T) {
+func TestClientFetchWhenServerResponseMalformed(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Bad response"))
 	}))
@@ -116,7 +116,7 @@ func TestFetchWhenServerResponseMalformed(t *testing.T) {
 	}
 }
 
-func TestFetchWhenServerDoesNotRespondAfterRetries(t *testing.T) {
+func TestClientFetchWhenServerDoesNotRespondAfterRetries(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Bad response"))
 	}))
@@ -137,7 +137,7 @@ func TestFetchWhenServerDoesNotRespondAfterRetries(t *testing.T) {
 	}
 }
 
-func TestFetchWhenServerDoesNotRespond(t *testing.T) {
+func TestClientFetchWhenServerDoesNotRespond(t *testing.T) {
 	client := gocd.NewClient()
 	dashboard, err := client.Fetch("<>")
 
@@ -153,7 +153,7 @@ func TestFetchWhenServerDoesNotRespond(t *testing.T) {
 	}
 }
 
-func TestFetchWhenRequestCreationFails(t *testing.T) {
+func TestClientFetchWhenRequestCreationFails(t *testing.T) {
 	client := gocd.NewClient()
 	dashboard, err := client.Fetch("::")
 
